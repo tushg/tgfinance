@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -195,6 +196,12 @@ func ValidateDate(date, fieldName string) error {
 	dateRegex := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 	if !dateRegex.MatchString(date) {
 		return &ValidationError{Field: fieldName, Message: fmt.Sprintf("%s must be in YYYY-MM-DD format", fieldName)}
+	}
+
+	// Parse the date to validate it's actually valid
+	_, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return &ValidationError{Field: fieldName, Message: fmt.Sprintf("%s must be a valid date", fieldName)}
 	}
 
 	return nil
