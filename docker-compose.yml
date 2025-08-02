@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: tgfinance-postgres
+    environment:
+      POSTGRES_DB: tgfinance
+      POSTGRES_USER: tgfinance_user
+      POSTGRES_PASSWORD: tgfinance_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - tgfinance-network
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: tgfinance-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - tgfinance-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./backend
+      dockerfile: docker/user-service.Dockerfile
+    container_name: tgfinance-user-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=tgfinance
+      - DB_USER=tgfinance_user
+      - DB_PASSWORD=tgfinance_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key
+      - SERVICE_PORT=8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tgfinance-network
+
+  # Expense Service
+  expense-service:
+    build:
+      context: ./backend
+      dockerfile: docker/expense-service.Dockerfile
+    container_name: tgfinance-expense-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=tgfinance
+      - DB_USER=tgfinance_user
+      - DB_PASSWORD=tgfinance_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_PORT=8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tgfinance-network
+
+  # Investment Service
+  investment-service:
+    build:
+      context: ./backend
+      dockerfile: docker/investment-service.Dockerfile
+    container_name: tgfinance-investment-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=tgfinance
+      - DB_USER=tgfinance_user
+      - DB_PASSWORD=tgfinance_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_PORT=8003
+    ports:
+      - "8003:8003"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tgfinance-network
+
+  # Goal Service
+  goal-service:
+    build:
+      context: ./backend
+      dockerfile: docker/goal-service.Dockerfile
+    container_name: tgfinance-goal-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=tgfinance
+      - DB_USER=tgfinance_user
+      - DB_PASSWORD=tgfinance_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_PORT=8004
+    ports:
+      - "8004:8004"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tgfinance-network
+
+  # Report Service
+  report-service:
+    build:
+      context: ./backend
+      dockerfile: docker/report-service.Dockerfile
+    container_name: tgfinance-report-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=tgfinance
+      - DB_USER=tgfinance_user
+      - DB_PASSWORD=tgfinance_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_PORT=8005
+    ports:
+      - "8005:8005"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tgfinance-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: docker/api-gateway.Dockerfile
+    container_name: tgfinance-api-gateway
+    environment:
+      - USER_SERVICE_URL=http://user-service:8001
+      - EXPENSE_SERVICE_URL=http://expense-service:8002
+      - INVESTMENT_SERVICE_URL=http://investment-service:8003
+      - GOAL_SERVICE_URL=http://goal-service:8004
+      - REPORT_SERVICE_URL=http://report-service:8005
+      - GATEWAY_PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - user-service
+      - expense-service
+      - investment-service
+      - goal-service
+      - report-service
+    networks:
+      - tgfinance-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tgfinance-frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - tgfinance-network
+
+volumes:
+  postgres_data:
+
+networks:
+  tgfinance-network:
+    driver: bridge 
